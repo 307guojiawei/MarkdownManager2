@@ -1,8 +1,16 @@
 import jwt
+from flask import request
+
 import util.UserDao as UserDao
 import time
 import util.Config as Config
 from util.BaseType import User
+from functools import wraps
+
+from util.ErrorHandle import MdmException
+
+
+globalTokenList = list()  #无效的token列表
 
 
 class Autentication:
@@ -38,7 +46,13 @@ class Autentication:
         else:
             return None
 
+    def deleteToken(self,token):
+        if token not in globalTokenList:
+            globalTokenList.append(token)
+
     def verifyToken(self,token):
+        if token in globalTokenList:
+            return None
         try:
             info = self.decodeToken(token)
         except Exception as e:
@@ -52,6 +66,23 @@ class Autentication:
             user.userId = info['id']
             return user
 
+#受token验证保护的API
+def requireAuth(**kwargs1):
+    def auth(func):
+        @wraps(func)
+        def authWrapper(**kwargs):
+            # print(kwargs['params'])
+            token = request.form.get('token')
+            auth = Autentication()
+            user = auth.verifyToken(token)
+            # print(user)
+            if user:
+                kwargs['userInfo'] = user
+                return func(**kwargs)
+            else:
+                raise MdmException(4002,"login first")
+        return authWrapper
+    return auth
 
 if __name__ == '__main__':
     pass
