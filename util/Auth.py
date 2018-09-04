@@ -66,6 +66,15 @@ class Autentication:
             user.userId = info['id']
             return user
 
+    def addUser(self,userName, password):
+        try:
+            user = User(userName,password)
+            UserDao.addUser(user)
+            return self.verifyUser(user.userName,user.password)
+        except Exception as e:
+            raise MdmException(4002,"用户已被注册")
+
+
 #受token验证保护的API
 def requireAuth(**kwargs1):
     def auth(func):

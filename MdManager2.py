@@ -1,4 +1,5 @@
 import os
+import random
 
 from flask import Flask
 from flask import request
@@ -8,16 +9,20 @@ import util.Install as Install
 import util.Config as Config
 import time
 from util.Auth import requireAuth
+from util.BaseType import MdFile
 from util.ErrorHandle import errorHandle, MdmException
+import util.FileDao as FileDao
+from werkzeug import secure_filename
 
 app = Flask(__name__)
 app.debug = True
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024 #最大2G
 
 
 
 @app.route('/')
 def pwd():
-    return str(os.path.realpath(__file__))
+    return str(os.path.dirname(os.path.realpath(__file__)))
 
 @app.route('/mdm2/install')
 def install():
@@ -35,15 +40,246 @@ def install():
 def hello_world(**kwargs):
     return str(kwargs['userInfo'])
 
-@app.route('/file/privateList',methods=['POST'])
+
+'''
+查看公共文件列表
+    /file/public/list POST/GET        
+
+    =
+        + code [4001|4002|4003]  成功|失败|token改变
+        + msg   string  信息
+        {} payload   负载
+            [] fileList  文件列表
+                + id    文件ID
+                + name  文件名
+                + date  上次改动时间
+                + ownerId   拥有者id
+                + permission    权限类型
+                + status    状态
+
+'''
+@app.route('/file/public/list',methods=['POST','GET'])
+@errorHandle()
+def publicListHandler():
+    bufList = FileDao.getPublicFileList()
+    fileList = list()
+    for file in bufList:
+        fileList.append(file.__dict__)
+    return {'fileList':fileList}
+
+
+'''
+查看某个公共文件内容
+    /file/public/getFile POST   
+        + id    string 文件id
+    =
+        + code [4001|4002|4003]  成功|失败|token改变
+        + msg   string  信息
+        {} payload   负载
+            {} file 文件
+                + id    文件ID
+                + name  文件名
+                + date  上次改动时间
+                + ownerId   拥有者id
+                + permission    权限类型
+                + status    状态
+                + content   内容
+
+'''
+@app.route('/file/public/getFile', methods=['POST', 'GET'])
+@errorHandle()
+def publicFileContentHandler():
+    id = int(request.form['id'])
+    file = FileDao.getFileById(id)
+    if file.permission == "public":
+        return {'file':file.__dict__}
+    else:
+        raise MdmException(4002,"permission denied")
+
+
+
+
+'''
+查看用户保存的全部文件列表
+    /file/private/list POST
+        + token String token
+    
+    =
+        + code [4001|4002|4003]  成功|失败|token改变
+        + msg   string  信息
+        {} payload   负载
+            [] fileList  文件列表
+                + id    文件ID
+                + name  文件名
+                + date  上次改动时间
+                + ownerId   拥有者id
+                + permission    权限类型
+                + status    状态
+    
+'''
+@app.route('/file/private/list',methods=['POST'])
 @errorHandle()
 @requireAuth()
 def privateListHandler(**kwargs):
     user = kwargs["userInfo"]
+    bufList = FileDao.getFileListByUid(user.userId)
+    fileList = list()
+    for file in bufList:
+        fileList.append(file.__dict__)
+    return {'fileList':fileList}
 
+
+'''
+查看用户某个文件
+    /file/private/getFile POST
+        + token String token
+        + id    string 文件id
+
+    =
+        + code [4001|4002|4003]  成功|失败|token改变
+        + msg   string  信息
+        {} payload   负载
+            {} file 文件
+                + id    文件ID
+                + name  文件名
+                + date  上次改动时间
+                + ownerId   拥有者id
+                + permission    权限类型
+                + status    状态
+                + content   内容
+
+'''
+@app.route('/file/private/getFile', methods=['POST'])
+@errorHandle()
+@requireAuth()
+def privateFileHandler(**kwargs):
+    user = kwargs['userInfo']
+    id = int(request.form['id'])
+    file = FileDao.getFileById(id)
+    if str(file.ownerId) != str(user.userId):
+        raise MdmException(4002,"Permission Denied")
+    return {'file':file.__dict__}
+
+
+'''
+创建文件
+    /file/private/addFile POST
+        + token String token
+        + name  文件名
+        + permission    权限类型
+        + content   内容
+        + date  上次修改时间
+
+    =
+        + code [4001|4002|4003]  成功|失败|token改变
+        + msg   string  信息
+        {} payload   负载
+            None
+
+'''
+@app.route('/file/private/addFile', methods=['POST'])
+@errorHandle()
+@requireAuth()
+def addFileHandler(**kwargs):
+    user = kwargs['userInfo']
+    file = MdFile(
+        name=request.form['name'],
+        ownerId=user.userId,
+        date=request.form['date'],
+        permission=request.form['permission'],
+        status="OK",
+        content=request.form['content']
+    )
+    FileDao.addFile(file)
     return None
 
 '''
+修改文件
+    /file/private/updateFile POST
+        + token String token
+        + id  文件id
+        + permission    权限类型
+        + content   内容
+        + date  上次修改时间
+
+    =
+        + code [4001|4002|4003]  成功|失败|token改变
+        + msg   string  信息
+        {} payload   负载
+            None
+
+'''
+@app.route('/file/private/updateFile', methods=['POST'])
+@errorHandle()
+@requireAuth()
+def updateFileHandler(**kwargs):
+    user = kwargs['userInfo']
+    fid = int(request.form['id'])
+    file = FileDao.getFileById(fid)
+    if str(file.ownerId) != str(user.userId):
+        raise MdmException(4002,"Permission Denied")
+    file.permission = request.form['permission']
+    file.content = request.form['content']
+    file.date = request.form['date']
+    FileDao.updateFile(file)
+    return None
+
+'''
+删除文件
+    /file/private/deleteFile POST
+        + token String token
+        + id  文件id
+
+    =
+        + code [4001|4002|4003]  成功|失败|token改变
+        + msg   string  信息
+        {} payload   负载
+            None
+
+'''
+@app.route('/file/private/deleteFile', methods=['POST'])
+@errorHandle()
+@requireAuth()
+def deleteFileHanler(**kwargs):
+    user = kwargs['userInfo']
+    fid = int(request.form['id'])
+    file = FileDao.getFileById(fid)
+    if str(file.ownerId) != str(user.userId):
+        raise MdmException(4002,"Permission Denied")
+    FileDao.removeFile(fid)
+    return None
+
+'''
+上传图片
+    /file/private/uploadImg POST
+        + token String token
+        + data  文件数据
+
+    =
+        + code [4001|4002|4003]  成功|失败|token改变
+        + msg   string  信息
+        {} payload   负载
+            + url   String 图片url
+
+'''
+@app.route('/file/private/uploadImg', methods=['POST'])
+@errorHandle()
+@requireAuth()
+def uploadImgHandler(**kwargs):
+    ALLOWED_EXTENSIONS = ['jpg','jpeg','png','bmp','svg']
+    user = kwargs['userInfo']
+    f = request.files['data']
+    fnameOrigin = secure_filename(f.filename)
+    fileType = fnameOrigin.rsplit('.', 1)[1]
+    if '.' in fnameOrigin and fileType  in ALLOWED_EXTENSIONS:
+        fname = str(int(time.time()*10000))+str(random.randint(0,9))+'.'+str(fileType)
+        f.save(pwd()+'/static/img/'+fname)
+        return {"url":"/static/img/"+fname}
+    else:
+        raise MdmException(4002,'Unsupported file type')
+
+'''
+用户登录
     /auth POST
         + opr   [login|logout]  操作
         + userName string   用户名
@@ -52,7 +288,7 @@ def privateListHandler(**kwargs):
     =
         + code [4001|4002|4003]  认证成功|失败|token改变
         + msg   string  信息
-        + payload   负载
+        {} payload   负载
             + token string  token信息
 '''
 @app.route('/auth',methods=['POST'])
@@ -73,6 +309,31 @@ def authenticate():
         else:
             auth.deleteToken(request.form['password'])
             return [{"token":"None"},4003,"token change"]
+
+'''
+用户注册
+    /regist POST
+        +userName   String
+        +password   String
+    
+    =
+        + code [4001|4002]  成功|失败
+        + msg   string  信息
+        {} payload   负载
+            + token string  token信息
+'''
+@app.route('/regist',methods=['POST'])
+@errorHandle()
+def registHandler():
+    userName = request.form['userName']
+    password = request.form['password']
+    if len(userName)>0 and len(password)>0:
+        auth = Auth.Autentication()
+        token = auth.addUser(userName,password)
+        return {"token": token}
+    else:
+        raise MdmException(4002,'用户名或密码不能为空')
+
 
 
 

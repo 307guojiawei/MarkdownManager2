@@ -19,7 +19,6 @@ class DBDriver:
         else:
             conf = Config()
             self.dbfile = str(conf.properties.get("ProjectRoot"))+str(conf.properties.get("DBFile"))
-        print(self.dbfile)
         self.conn = sqlite3.connect(self.dbfile)
         self.conn.isolation_level = None
 
