@@ -20,14 +20,9 @@ err_code = {
 def resultFormat(code, msg, payload):
     res = {
         "code":code,
-        "msg":"",
+        "msg":msg,
         "payload":payload
     }
-    if str(code) in err_code:
-        res["msg"] = str(err_code[str(code)])+" : "+str(msg)
-    else:
-        res["msg"] = str(msg)
-    # print(json.dumps(res))
     return json.dumps(res)
 
 #装饰器 decorater

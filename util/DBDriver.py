@@ -26,7 +26,7 @@ class DBDriver:
         createlist = ["create table if not exists ", self.tablename, "(",
                       self.tablefield, ")"]
         createsql = "".join(createlist)
-        print(self.dbfile)
+        #print(self.dbfile)
 
         # self.conn.execute("drop table if exists " + self.tablename)  ###delete the eixst table
         self.conn.execute(createsql)  ####create new table

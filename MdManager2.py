@@ -3,7 +3,7 @@ import random
 
 from flask import Flask
 from flask import request
-import json
+from PIL import Image
 import util.Auth as Auth
 import util.Install as Install
 import util.Config as Config
@@ -12,7 +12,7 @@ from util.Auth import requireAuth
 from util.BaseType import MdFile
 from util.ErrorHandle import errorHandle, MdmException
 import util.FileDao as FileDao
-from werkzeug import secure_filename
+
 
 app = Flask(__name__)
 app.debug = True
@@ -266,14 +266,19 @@ def deleteFileHanler(**kwargs):
 @errorHandle()
 @requireAuth()
 def uploadImgHandler(**kwargs):
-    ALLOWED_EXTENSIONS = ['jpg','jpeg','png','bmp','svg']
+    ALLOWED_EXTENSIONS = ['jpg','jpeg','png','bmp']
     user = kwargs['userInfo']
     f = request.files['data']
-    fnameOrigin = secure_filename(f.filename)
+    fnameOrigin = f.filename
     fileType = fnameOrigin.rsplit('.', 1)[1]
-    if '.' in fnameOrigin and fileType  in ALLOWED_EXTENSIONS:
+    if '.' in fnameOrigin and fileType in ALLOWED_EXTENSIONS:
         fname = str(int(time.time()*10000))+str(random.randint(0,9))+'.'+str(fileType)
+        try:
+            img = Image.open(f)
+        except:
+            raise MdmException(4002,"Image content broken")
         f.save(pwd()+'/static/img/'+fname)
+
         return {"url":"/static/img/"+fname}
     else:
         raise MdmException(4002,'Unsupported file type')
