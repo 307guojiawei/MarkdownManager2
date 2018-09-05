@@ -10,6 +10,7 @@ def getDBDriver():
                            " ownerId integer,"
                            " permission varchar(10),"
                            " status varchar(10),"
+                           " version integer,"
                            " content TEXT"])
 
 
@@ -22,7 +23,7 @@ def initDB():
 def addFile(mdFile):
     dbDriver = getDBDriver()
     try:
-        dbDriver.execDB("insert into FILE(id,name,date,ownerId,permission,status,content) values(?,?,?,?,?,?,?)",
+        dbDriver.execDB("insert into FILE(id,name,date,ownerId,permission,status,content,version) values(?,?,?,?,?,?,?,?)",
                         (
                             mdFile.id,
                             mdFile.name,
@@ -30,7 +31,8 @@ def addFile(mdFile):
                             mdFile.ownerId,
                             mdFile.permission,
                             mdFile.status,
-                            mdFile.content
+                            mdFile.content,
+                            mdFile.version
                         )
                         )
         dbDriver.closeDB()
@@ -51,25 +53,27 @@ def removeFile(id):
 def updateFile(mdFile):
     dbDriver = getDBDriver()
     try:
-        dbDriver.execDB("update File set date = ?,permission = ?,status = ?,content=? where id=?",
-                            (
-                                mdFile.date,
-                                mdFile.permission,
-                                mdFile.status,
-                                mdFile.content,
-                                mdFile.id
-                            )
+        dbDriver.execDB("update File set date = ?,permission = ?,status = ?,content=?,version=? where id=?",
+                        (
+                            mdFile.date,
+                            mdFile.permission,
+                            mdFile.status,
+                            mdFile.content,
+                            mdFile.version,
+                            mdFile.id
+                        )
                         )
         dbDriver.closeDB()
     except Exception as e:
         raise e
 
-#获取用户的所有文件 id,name,date,ownerId,permission,status
+
+# 获取用户的所有文件 id,name,date,ownerId,permission,status
 def getFileListByUid(uid):
     uid = int(uid)
     dbDriver = getDBDriver()
     try:
-        resList = dbDriver.getResult("select id,name,date,ownerId,permission,status from FILE where ownerId=?",[uid])
+        resList = dbDriver.getResult("select id,name,date,ownerId,permission,status,version from FILE where ownerId=?", [uid])
         resultFile = list()
         for res in resList:
             file = MdFile(id=res[0],
@@ -77,7 +81,8 @@ def getFileListByUid(uid):
                           date=res[2],
                           ownerId=res[3],
                           permission=res[4],
-                          status=res[5]
+                          status=res[5],
+                          version=res[6]
                           )
             resultFile.append(file)
         dbDriver.closeDB()
@@ -85,11 +90,15 @@ def getFileListByUid(uid):
     except Exception as e:
         raise e
 
-#获取公共文件
+
+# 获取公共文件
 def getPublicFileList():
     dbDriver = getDBDriver()
+
     try:
-        resList=dbDriver.getResult("select id,name,date,ownerId,permission,status from FILE where permission='public'")
+        resList = dbDriver.getResult(
+            "select id,name,date,ownerId,permission,status,version from FILE where permission='public'")
+
         resultFile = list()
         for res in resList:
             file = MdFile(id=res[0],
@@ -97,28 +106,32 @@ def getPublicFileList():
                           date=res[2],
                           ownerId=res[3],
                           permission=res[4],
-                          status=res[5]
+                          status=res[5],
+                          version=res[6]
                           )
+
             resultFile.append(file)
         dbDriver.closeDB()
         return resultFile
     except Exception as e:
         raise e
+
 
 def getFileById(fid):
     fid = int(fid)
     dbDriver = getDBDriver()
     try:
-        res = dbDriver.getResult("select id,name,date,ownerId,permission,status,content from FILE where id=?", [fid])
+        res = dbDriver.getResult("select id,name,date,ownerId,permission,status,content,version from FILE where id=?", [fid])
         res = res[0]
-        file = MdFile(id = res[0],
+        file = MdFile(id=res[0],
                       name=res[1],
                       date=res[2],
                       ownerId=res[3],
                       permission=res[4],
                       status=res[5],
-                      content=res[6]
-        )
+                      content=res[6],
+                      version=res[7]
+                      )
         dbDriver.closeDB()
         return file
     except Exception as e:
@@ -128,13 +141,13 @@ def getFileById(fid):
 if __name__ == '__main__':
 
     file = MdFile(
-                  name='hello1',
-                  date='1231233',
-                  ownerId=1,
-                  permission='private',
-                  status='OK',
-                  content='abcdefghijksdfsdflmnopqrstuvwxyz'
-                  )
+        name='hello1',
+        date='1231233',
+        ownerId=1,
+        permission='private',
+        status='OK',
+        content='abcdefghijksdfsdflmnopqrstuvwxyz'
+    )
     addFile(file)
     fileList = getFileListByUid(1)
     for file in fileList:
@@ -142,9 +155,7 @@ if __name__ == '__main__':
     print("")
     file = getFileById(1)
     print(file)
-    file.content +="gjwgjwgjw"
+    file.content += "gjwgjwgjw"
     updateFile(file)
     file = getFileById(1)
     print(file)
-
-

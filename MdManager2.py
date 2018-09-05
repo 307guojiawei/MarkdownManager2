@@ -1,9 +1,11 @@
 import os
 import random
 
-from flask import Flask
+from flask import Flask, make_response
 from flask import request
 from PIL import Image
+from flask_cors import CORS
+
 import util.Auth as Auth
 import util.Install as Install
 import util.Config as Config
@@ -13,28 +15,43 @@ from util.BaseType import MdFile
 from util.ErrorHandle import errorHandle, MdmException
 import util.FileDao as FileDao
 
-
 app = Flask(__name__)
 app.debug = True
-app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024 #最大2G
+app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 最大2G
+CORS(app, supports_credentials=True, resources=r'/*')
 
+
+@app.after_request
+def af_request(resp):
+    """
+    #请求钩子，在所有的请求发生后执行，加入headers。
+    :param resp:
+    :return:
+    """
+    resp = make_response(resp)
+    resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = 'GET,POST'
+    resp.headers['Access-Control-Allow-Headers'] = 'x-requested-with,content-type'
+    return resp
 
 
 @app.route('/')
 def pwd():
     return str(os.path.dirname(os.path.realpath(__file__)))
 
+
 @app.route('/mdm2/install')
 def install():
     conf = Config.Config()
     if not conf.properties.has_key("INSTALL"):
         Install.install()
-        conf.properties.put("INSTALL",str(time.time()))
+        conf.properties.put("INSTALL", str(time.time()))
         return "<h1>:)</h1></br>MarkdownManager2 has been suuccessfully installed :)"
     else:
         return "<h1>:(</h1></br>You have already installed.<br>To reinstall,remove <strong>INSTALL</strong> from config.properties "
 
-@app.route('/protected',methods=['POST'])
+
+@app.route('/protected', methods=['POST'])
 @errorHandle()
 @requireAuth()
 def hello_world(**kwargs):
@@ -56,16 +73,19 @@ def hello_world(**kwargs):
                 + ownerId   拥有者id
                 + permission    权限类型
                 + status    状态
+                + version   版本号
 
 '''
-@app.route('/file/public/list',methods=['POST','GET'])
+
+
+@app.route('/file/public/list', methods=['POST', 'GET'])
 @errorHandle()
 def publicListHandler():
     bufList = FileDao.getPublicFileList()
     fileList = list()
     for file in bufList:
         fileList.append(file.__dict__)
-    return {'fileList':fileList}
+    return {'fileList': fileList}
 
 
 '''
@@ -84,19 +104,20 @@ def publicListHandler():
                 + permission    权限类型
                 + status    状态
                 + content   内容
+                + version   版本号
 
 '''
+
+
 @app.route('/file/public/getFile', methods=['POST', 'GET'])
 @errorHandle()
 def publicFileContentHandler():
     id = int(request.form['id'])
     file = FileDao.getFileById(id)
     if file.permission == "public":
-        return {'file':file.__dict__}
+        return {'file': file.__dict__}
     else:
-        raise MdmException(4002,"permission denied")
-
-
+        raise MdmException(4002, "permission denied")
 
 
 '''
@@ -115,9 +136,12 @@ def publicFileContentHandler():
                 + ownerId   拥有者id
                 + permission    权限类型
                 + status    状态
+                + version   版本号
     
 '''
-@app.route('/file/private/list',methods=['POST'])
+
+
+@app.route('/file/private/list', methods=['POST'])
 @errorHandle()
 @requireAuth()
 def privateListHandler(**kwargs):
@@ -126,7 +150,7 @@ def privateListHandler(**kwargs):
     fileList = list()
     for file in bufList:
         fileList.append(file.__dict__)
-    return {'fileList':fileList}
+    return {'fileList': fileList}
 
 
 '''
@@ -147,8 +171,11 @@ def privateListHandler(**kwargs):
                 + permission    权限类型
                 + status    状态
                 + content   内容
+                + version   版本号
 
 '''
+
+
 @app.route('/file/private/getFile', methods=['POST'])
 @errorHandle()
 @requireAuth()
@@ -157,8 +184,8 @@ def privateFileHandler(**kwargs):
     id = int(request.form['id'])
     file = FileDao.getFileById(id)
     if str(file.ownerId) != str(user.userId):
-        raise MdmException(4002,"Permission Denied")
-    return {'file':file.__dict__}
+        raise MdmException(4002, "Permission Denied")
+    return {'file': file.__dict__}
 
 
 '''
@@ -177,6 +204,8 @@ def privateFileHandler(**kwargs):
             None
 
 '''
+
+
 @app.route('/file/private/addFile', methods=['POST'])
 @errorHandle()
 @requireAuth()
@@ -188,10 +217,12 @@ def addFileHandler(**kwargs):
         date=request.form['date'],
         permission=request.form['permission'],
         status="OK",
-        content=request.form['content']
+        content=request.form['content'],
+        version=1
     )
     FileDao.addFile(file)
     return None
+
 
 '''
 修改文件
@@ -201,6 +232,7 @@ def addFileHandler(**kwargs):
         + permission    权限类型
         + content   内容
         + date  上次修改时间
+        + version   版本号
 
     =
         + code [4001|4002|4003]  成功|失败|token改变
@@ -209,6 +241,8 @@ def addFileHandler(**kwargs):
             None
 
 '''
+
+
 @app.route('/file/private/updateFile', methods=['POST'])
 @errorHandle()
 @requireAuth()
@@ -217,12 +251,17 @@ def updateFileHandler(**kwargs):
     fid = int(request.form['id'])
     file = FileDao.getFileById(fid)
     if str(file.ownerId) != str(user.userId):
-        raise MdmException(4002,"Permission Denied")
+        raise MdmException(4002, "Permission Denied")
     file.permission = request.form['permission']
-    file.content = request.form['content']
+    if request.form['content']!="":
+        file.content = request.form['content']
+    if int(file.version)>=int(request.form['version']):
+        raise MdmException(4500,"文件版本落后于远端，请先同步(Sync first)")
+    file.version = int(request.form['version'])
     file.date = request.form['date']
     FileDao.updateFile(file)
     return None
+
 
 '''
 删除文件
@@ -237,6 +276,8 @@ def updateFileHandler(**kwargs):
             None
 
 '''
+
+
 @app.route('/file/private/deleteFile', methods=['POST'])
 @errorHandle()
 @requireAuth()
@@ -245,9 +286,10 @@ def deleteFileHanler(**kwargs):
     fid = int(request.form['id'])
     file = FileDao.getFileById(fid)
     if str(file.ownerId) != str(user.userId):
-        raise MdmException(4002,"Permission Denied")
+        raise MdmException(4002, "Permission Denied")
     FileDao.removeFile(fid)
     return None
+
 
 '''
 上传图片
@@ -262,26 +304,29 @@ def deleteFileHanler(**kwargs):
             + url   String 图片url
 
 '''
+
+
 @app.route('/file/private/uploadImg', methods=['POST'])
 @errorHandle()
 @requireAuth()
 def uploadImgHandler(**kwargs):
-    ALLOWED_EXTENSIONS = ['jpg','jpeg','png','bmp']
+    ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'bmp']
     user = kwargs['userInfo']
     f = request.files['data']
     fnameOrigin = f.filename
     fileType = fnameOrigin.rsplit('.', 1)[1]
     if '.' in fnameOrigin and fileType in ALLOWED_EXTENSIONS:
-        fname = str(int(time.time()*10000))+str(random.randint(0,9))+'.'+str(fileType)
+        fname = str(int(time.time() * 10000)) + str(random.randint(0, 9)) + '.' + str(fileType)
         try:
             img = Image.open(f)
         except:
-            raise MdmException(4002,"Image content broken")
-        f.save(pwd()+'/static/img/'+fname)
+            raise MdmException(4002, "Image content broken")
+        f.save(pwd() + '/static/img/' + fname)
 
-        return {"url":"/static/img/"+fname}
+        return {"url": "/static/img/" + fname}
     else:
-        raise MdmException(4002,'Unsupported file type')
+        raise MdmException(4002, 'Unsupported file type')
+
 
 '''
 用户登录
@@ -296,24 +341,28 @@ def uploadImgHandler(**kwargs):
         {} payload   负载
             + token string  token信息
 '''
-@app.route('/auth',methods=['POST'])
+
+
+@app.route('/auth', methods=['POST'])
 @errorHandle()
 def authenticate():
     if request.method == 'POST':
         opr = request.form['opr']
-        userName = request.form['userName']
-        password = request.form['password']
+
         # print(str(opr)+"\t"+str(userName)+"\t"+str(password))
         auth = Auth.Autentication()
         if opr == "login":
-            token=auth.verifyUser(userName,password)
+            userName = request.form['userName']
+            password = request.form['password']
+            token = auth.verifyUser(userName, password)
             if token:
-                return [{"token":token},4001,"login success"]
+                return [{"token": token}, 4001, "login success"]
             else:
-                raise MdmException(4002,"login failed")
+                raise MdmException(4002, "login failed")
         else:
             auth.deleteToken(request.form['password'])
-            return [{"token":"None"},4003,"token change"]
+            return [{"token": "None"}, 4003, "token change"]
+
 
 '''
 用户注册
@@ -327,20 +376,19 @@ def authenticate():
         {} payload   负载
             + token string  token信息
 '''
-@app.route('/regist',methods=['POST'])
+
+
+@app.route('/regist', methods=['POST'])
 @errorHandle()
 def registHandler():
     userName = request.form['userName']
     password = request.form['password']
-    if len(userName)>0 and len(password)>0:
+    if len(userName) > 0 and len(password) > 0:
         auth = Auth.Autentication()
-        token = auth.addUser(userName,password)
+        token = auth.addUser(userName, password)
         return {"token": token}
     else:
-        raise MdmException(4002,'用户名或密码不能为空')
-
-
-
+        raise MdmException(4002, '用户名或密码不能为空')
 
 
 if __name__ == '__main__':
