@@ -17,6 +17,7 @@ from util import HistoryDao
 from util.Auth import requireAuth
 from util.BaseType import MdFile, MdHistory
 from util.ErrorHandle import errorHandle, MdmException
+import util.History as History
 import util.FileDao as FileDao
 
 
@@ -247,7 +248,6 @@ def addFileHandler(**kwargs):
 
 '''
 
-
 @app.route('/file/private/updateFile', methods=['POST'])
 @errorHandle()
 @requireAuth()
@@ -264,9 +264,57 @@ def updateFileHandler(**kwargs):
         raise MdmException(4500,"文件版本落后于远端，请先同步(Sync first)")
     file.version = int(request.form['version'])
     file.date = request.form['date']
-    FileDao.updateFile(file)
+    History.saveFileWithPatch(file)
     return None
 
+'''
+获取指定版本的文件
+    /file/private/getHistoryFile POST
+        + token String token
+        + id  文件id
+        + version   版本号
+
+    =
+        + code [4001|4002|4003]  成功|失败|token改变
+        + msg   string  信息
+        {} payload   负载
+            + currentFile   当前文件
+            + historyFile   历史文件
+
+'''
+@app.route('/file/private/getHistoryFile', methods=['POST'])
+@errorHandle()
+@requireAuth()
+def getHistoryFileHandler(**kwargs):
+    user = kwargs['userInfo']
+    fid = int(request.form['id'])
+    version = int(request.form['version'])
+    file = MdFile(id=fid)
+    historyFile,currentFile = History.viewFileWithVersion(version=version,file=file)
+    return {'currentFile':currentFile.__dict__,'historyFile':historyFile.__dict__}
+
+'''
+恢复文件到某个指定版本
+    /file/private/restoreFile POST
+        + token String token
+        + id  文件id
+        + version   版本号
+
+    =
+        + code [4001|4002|4003]  成功|失败|token改变
+        + msg   string  信息
+        {} payload   负载
+
+'''
+@app.route('/file/private/restoreFile', methods=['POST'])
+@errorHandle()
+@requireAuth()
+def restoreFileHandler(**kwargs):
+    user = kwargs['userInfo']
+    fid = int(request.form['id'])
+    version = int(request.form['version'])
+    History.restoreFile(version,MdFile(id=fid))
+    return None
 
 '''
 删除文件

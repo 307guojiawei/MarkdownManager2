@@ -9,7 +9,7 @@ class User:
         return "Platform User("+str(self.userId)+"):\tUserName:"+str(self.userName)+"\tPassword:"+str(self.password)
 
 class MdFile:
-    def __init__(self,name,date=None,ownerId=None,permission=None,status=None,id=None,content=None,version=None):
+    def __init__(self,name=None,date=None,ownerId=None,permission=None,status=None,id=None,content=None,version=None):
         self.id = id
         self.name = name
         self.date = date

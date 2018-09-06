@@ -2,4 +2,4 @@ Flask>=1.0.2
 Pillow
 flask_cors
 diff_match_patch
-jwt
+PyJWT
