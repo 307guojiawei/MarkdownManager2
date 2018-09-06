@@ -2,7 +2,7 @@ import util.UserDao as UserDao
 import util.Config as Config
 import os
 
-from util import FileDao
+from util import FileDao, HistoryDao
 
 
 def install():
@@ -25,5 +25,6 @@ def installDB():
         print("Init table")
         UserDao.initDB()
         FileDao.initDB()
+        HistoryDao.initDB()
     except Exception as e:
         raise e

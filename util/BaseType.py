@@ -21,3 +21,13 @@ class MdFile:
 
     def __str__(self):
         return "Markdown File:\t"+str(json.dumps(self.__dict__))
+
+class MdHistory:
+    def __init__(self,fid,version,patch_content,id=None,):
+        self.id=id
+        self.fid=fid
+        self.version=version
+        self.patch_content=patch_content
+
+    def __str__(self):
+        return "Markdown History:\t"+str(json.dumps(self.__dict__))

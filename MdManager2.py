@@ -5,15 +5,20 @@ from flask import Flask, make_response
 from flask import request
 from PIL import Image
 from flask_cors import CORS
+import diff_match_patch as dmp_module
+import json
 
 import util.Auth as Auth
 import util.Install as Install
 import util.Config as Config
 import time
+
+from util import HistoryDao
 from util.Auth import requireAuth
-from util.BaseType import MdFile
+from util.BaseType import MdFile, MdHistory
 from util.ErrorHandle import errorHandle, MdmException
 import util.FileDao as FileDao
+
 
 app = Flask(__name__)
 app.debug = True
@@ -391,5 +396,8 @@ def registHandler():
         raise MdmException(4002, '用户名或密码不能为空')
 
 
+
+
 if __name__ == '__main__':
     app.run()
+
