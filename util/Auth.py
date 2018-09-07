@@ -13,7 +13,7 @@ globalTokenList = list()  # 无效的token列表
 
 
 class Autentication:
-    def __init__(self, secretKey=None, algorithm='HS256', expireHour=1):
+    def __init__(self, secretKey=None, algorithm='HS256', expireHour=10):
         if secretKey is None:
             config = Config.Config()
             self.secretKey = str(config.properties.get("JWTSecretKey"))
