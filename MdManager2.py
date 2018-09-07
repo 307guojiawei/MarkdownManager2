@@ -1,6 +1,8 @@
 #-*- coding:utf-8 -*-
+import base64
 import os
 import random
+import urllib
 
 from flask import Flask, make_response, redirect, url_for
 from flask import request
@@ -265,6 +267,9 @@ def updateFileHandler(**kwargs):
     file.permission = request.form['permission']
     if request.form['content']!="":
         file.content = request.form['content']
+        print(file.content)
+        file.content = urllib.parse.unquote(file.content)
+        print(file.content)
     if int(file.version)>=int(request.form['version']):
         raise MdmException(4500,"文件版本落后于远端，请先同步(Sync first)")
     file.version = int(request.form['version'])
