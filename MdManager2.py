@@ -487,5 +487,5 @@ def changePassHandler(**kwargs):
 
 if __name__ == '__main__':
     config = Config.Config()
-    app.run(port=int(config.properties.get("PORT")))
+    app.run(port=int(config.properties.get("PORT")),host=config.properties.get("HOST"))
 
