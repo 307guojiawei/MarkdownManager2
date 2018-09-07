@@ -49,6 +49,16 @@ def getUserByName(userName):
     except Exception as e:
         raise e
 
+def updateUserPassword(userId,password):
+    dbDriver = getDBDriver()
+    userId = int(userId)
+    password = str(password)
+    try:
+        dbDriver.execDB("update user set password=? where id= ?", (password,userId))
+        dbDriver.closeDB()
+    except Exception as e:
+        raise e
+
 if __name__ == '__main__':
     user = User(username="gjw",password="123456")
     addUser(user)

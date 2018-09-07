@@ -1,3 +1,4 @@
+#-*- coding:utf-8 -*-
 import os
 import random
 
@@ -8,9 +9,12 @@ from flask_cors import CORS
 import diff_match_patch as dmp_module
 import json
 
+from werkzeug.datastructures import FileStorage
+
 import util.Auth as Auth
 import util.Install as Install
 import util.Config as Config
+import util.UserDao as UserDao
 import time
 
 from util import HistoryDao
@@ -359,7 +363,7 @@ def deleteFileHanler(**kwargs):
 '''
 
 
-@app.route('/file/private/uploadImg', methods=['POST'])
+@app.route('/file/private/uploadImg', methods=['POST', 'GET'])
 @errorHandle()
 @requireAuth()
 def uploadImgHandler(**kwargs):
@@ -372,10 +376,14 @@ def uploadImgHandler(**kwargs):
         fname = str(int(time.time() * 10000)) + str(random.randint(0, 9)) + '.' + str(fileType)
         try:
             img = Image.open(f)
+            img.save(pwd() + '/static/img/' + fname)
+            #img.show()
         except:
             raise MdmException(4002, "Image content broken")
-        f.save(pwd() + '/static/img/' + fname)
-
+        # with open(pwd() + '/static/img/' + fname,"wb") as fd:
+        #     print(dir(f))
+        #     fd.write(f.stream)
+        #f.save(pwd() + '/static/img/' + fname)
         return {"url": "/static/img/" + fname}
     else:
         raise MdmException(4002, 'Unsupported file type')
@@ -444,6 +452,36 @@ def registHandler():
         raise MdmException(4002, '用户名或密码不能为空')
 
 
+'''
+用户修改密码
+    /changePassword POST
+        +oldPassword   String
+        +newPassword    String
+
+    =
+        + code [4001|4002]  成功|失败
+        + msg   string  信息
+        {} payload   负载
+            None
+'''
+
+
+@app.route('/changePassword', methods=['POST'])
+@errorHandle()
+@requireAuth()
+def changePassHandler(**kwargs):
+    user = kwargs['userInfo']
+    user = UserDao.getUserById(user.userId)
+    oldPassword = request.form['oldPassword']
+    newPassword = request.form['newPassword']
+    if len(oldPassword) > 0 and len(newPassword) > 0:
+        if oldPassword == user.password:
+            UserDao.updateUserPassword(user.userId,newPassword);
+        else:
+            raise MdmException(4002,'旧密码错误')
+        return None
+    else:
+        raise MdmException(4002, '用户名或密码不能为空')
 
 
 if __name__ == '__main__':

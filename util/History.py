@@ -49,7 +49,7 @@ def viewFileWithVersion(version,file):
         pathces=dmp.patch_fromText(file.patch_content)
         latest_file_json,_=dmp.patch_apply(pathces,latest_file_json)
         #print("version" + str(file.version-1)+"file content: "+str(latest_file_json))
-    #print(latest_file_json)
+    print(latest_file_json)
     file=MdFile("temp")
     file.__dict__=json.loads(latest_file_json)
     file.version=version

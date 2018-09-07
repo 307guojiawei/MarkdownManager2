@@ -1,3 +1,4 @@
+import traceback
 from functools import wraps
 import json
 
@@ -48,6 +49,7 @@ def errorHandle(**kwargs1):
                 return resultFormat(e.errId,msg,None)
             except Exception as e:
                 msg = str(type(e))+":"+str(e)+":args="+str(e.args)
+                print(traceback.format_exc())
                 return resultFormat(5000,msg,None)
         return wrapper
     return handler
