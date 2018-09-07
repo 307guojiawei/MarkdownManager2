@@ -2,7 +2,7 @@
 import os
 import random
 
-from flask import Flask, make_response
+from flask import Flask, make_response, redirect, url_for
 from flask import request
 from PIL import Image
 from flask_cors import CORS
@@ -26,9 +26,10 @@ import util.FileDao as FileDao
 
 
 app = Flask(__name__)
-app.debug = True
+app.debug = False
 app.config['MAX_CONTENT_LENGTH'] = 2 * 1024 * 1024 * 1024  # 最大2G
 CORS(app, supports_credentials=True, resources=r'/*')
+
 
 
 @app.after_request
@@ -47,7 +48,7 @@ def af_request(resp):
 
 @app.route('/')
 def pwd():
-    return str(os.path.dirname(os.path.realpath(__file__)))
+    return redirect('./static/index.html')
 
 
 @app.route('/mdm2/install')
@@ -485,5 +486,6 @@ def changePassHandler(**kwargs):
 
 
 if __name__ == '__main__':
-    app.run()
+    config = Config.Config()
+    app.run(port=int(config.properties.get("PORT")))
 
